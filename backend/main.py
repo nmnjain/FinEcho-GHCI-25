@@ -1,75 +1,70 @@
 import whisper
-import torchaudio
 from TTS.api import TTS
-from fastapi import FastAPI, UploadFile, File
+# --- ADD `Form` TO THIS IMPORT ---
+from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import os
+import json
+
+from nlu import get_dialogue_response
 
 # --- INITIALIZATION ---
-
-# Create a directory to store temporary files
 os.makedirs("temp", exist_ok=True)
-
-# Initialize FastAPI app
 app = FastAPI(title="FinEcho API")
 
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Transcribed-Text", "X-Session-State"]
 )
 
-# Load AI Models
-# Using a smaller, faster model is ideal for a hackathon prototype.
-print("Loading Whisper ASR model...")
-asr_model = whisper.load_model("base.en") # Use "base.en" for English-only
-print("ASR Model loaded.")
+print("Loading AI Models...")
+asr_model = whisper.load_model("base.en")
+tts_model = TTS(model_name="tts_models/en/ljspeech/vits", progress_bar=False)
+print("Models loaded.")
 
-print("Loading Coqui TTS model...")
-# This will download the model on the first run
-tts_model = TTS(model_name="tts_models/en/ljspeech/vits", progress_bar=True)
-print("TTS Model loaded.")
+sessions = {"user123": {}}
 
-
-# --- API ENDPOINTS ---
-
-@app.get("/")
-def read_root():
-    return {"status": "success", "message": "Welcome to the FinEcho Backend!"}
-
-@app.post("/transcribe")
-async def transcribe_audio(audio_file: UploadFile = File(...)):
-    """
-    This endpoint receives audio, transcribes it, and returns a TTS audio response.
-    """
-    print("Received audio file.")
+# --- THIS IS THE LINE TO CHANGE ---
+@app.post("/converse")
+async def converse_audio(session_state_str: str = Form(...), audio_file: UploadFile = File(...)):
+    # The rest of the function remains the same
+    session_state = json.loads(session_state_str)
     
-    # 1. Save the uploaded audio file temporarily
+    print(f"\nReceived audio file. Current session state: {session_state}")
+    
     temp_audio_path = os.path.join("temp", audio_file.filename)
     with open(temp_audio_path, "wb") as buffer:
         buffer.write(await audio_file.read())
         
-    # 2. Transcribe the audio using Whisper
     print("Transcribing audio...")
     transcription_result = asr_model.transcribe(temp_audio_path, fp16=False)
-    transcribed_text = transcription_result["text"]
+    transcribed_text = transcription_result["text"].strip()
     print(f"Transcribed Text: {transcribed_text}")
     
-    # --- For Phase 1, we use a fixed response ---
-    response_text = "Hello, welcome to FinEcho. How can I assist you today?"
+    response_text, updated_session_state = get_dialogue_response(session_state, transcribed_text)
+    print(f"Updated session state: {updated_session_state}")
+    print(f"Response Text: {response_text}")
     
-    # 3. Generate speech from the fixed response text using TTS
     print("Generating TTS response...")
     tts_output_path = os.path.join("temp", "response.wav")
     tts_model.tts_to_file(text=response_text, file_path=tts_output_path)
     print("TTS response generated.")
     
-    # 4. Clean up the temporary input file
     os.remove(temp_audio_path)
     
-    # 5. Return the generated audio file
-    return FileResponse(path=tts_output_path, media_type="audio/wav", filename="response.wav")
+    headers = {
+        "X-Transcribed-Text": transcribed_text,
+        "X-Session-State": json.dumps(updated_session_state)
+    }
+    
+    return FileResponse(
+        path=tts_output_path, 
+        media_type="audio/wav", 
+        filename="response.wav",
+        headers=headers
+    )

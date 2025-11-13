@@ -1,100 +1,104 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useReactMediaRecorder } from 'react-media-recorder';
 import './App.css';
 
 function App() {
-  const [status, setStatus] = useState('idle');
-  const [transcribedText, setTranscribedText] = useState('');
-  const [audioPlayer, setAudioPlayer] = useState(null);
+  const [status, setStatus] = useState('idle'); // idle, recording, processing
+  const [messages, setMessages] = useState([]); // Array to hold the conversation
+  const [sessionState, setSessionState] = useState({}); // To hold conversation state
+  const chatEndRef = useRef(null); // To auto-scroll chat
 
-  // Hook for handling media recording
-  const {
-    startRecording,
-    stopRecording,
-    mediaBlobUrl,
-  } = useReactMediaRecorder({ 
-      audio: true, 
-      onStop: handleStop,
-      // Add this onError handler for debugging
-      onError: (err) => console.error("react-media-recorder error:", err),
-  });
+  // Auto-scroll to the latest message
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  async function handleStop(blobUrl, blob) {
-    console.log("Recording stopped. Blob available at:", blobUrl);
-    setStatus('transcribing');
-    setTranscribedText('...'); 
+  const handleNewMessage = (text, sender) => {
+    setMessages(prev => [...prev, { text, sender }]);
+  };
 
+  async function handleStopCallback(blobUrl, blob) {
+    setStatus('processing');
     const formData = new FormData();
+    // Append session state as a string, because it's not a file
+    formData.append('session_state_str', JSON.stringify(sessionState));
     formData.append('audio_file', blob, 'recording.wav');
 
     try {
-      console.log("Sending audio to backend...");
-      const response = await axios.post('http://localhost:8000/transcribe', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const response = await axios.post('http://localhost:8000/converse', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
         responseType: 'blob',
       });
-      
-      console.log("Received response from backend.");
-      setTranscribedText("(User transcription will appear here in the next phase)");
+
+      const userText = response.headers['x-transcribed-text'];
+      const updatedSession = JSON.parse(response.headers['x-session-state']);
+
+      handleNewMessage(userText, 'user');
+      setSessionState(updatedSession);
 
       const audioUrl = URL.createObjectURL(response.data);
       const audio = new Audio(audioUrl);
-      setAudioPlayer(audio);
-      
-      setStatus('playing');
       audio.play();
-      
-      audio.onended = () => {
-        setStatus('idle');
-      };
+
+      // We need the assistant's text response for the chat history
+      // For now, we'll have to wait until Phase 6 (LLM) for the actual text.
+      // Let's use a placeholder.
+      // A better approach would be for the backend to return a JSON with both text and audio path.
+      handleNewMessage("...(Assistant's spoken response)", 'assistant');
 
     } catch (error) {
-      console.error('Error transcribing audio:', error);
+      console.error('Error in conversation:', error);
+      handleNewMessage("Sorry, I encountered an error.", 'assistant');
+    } finally {
       setStatus('idle');
     }
   }
 
-  // A new function to wrap the start recording logic
-  const handleStartRecording = () => {
-    console.log("Start Recording button clicked.");
-    try {
+  const { startRecording, stopRecording } = useReactMediaRecorder({
+    audio: true,
+    onStop: handleStopCallback,
+    onError: () => handleNewMessage("Recording failed. Please check microphone permissions.", 'assistant'),
+  });
+
+  const handleRecordClick = () => {
+    if (status === 'idle') {
+      // Only clear messages and state if it's the start of a brand new conversation
+      if (messages.length === 0) {
+        setSessionState({});
+      }
       setStatus('recording');
       startRecording();
-      console.log("Recording process initiated.");
-    } catch (err) {
-      console.error("Error initiating recording:", err);
-      setStatus('idle');
+    } else if (status === 'recording') {
+      stopRecording();
     }
   };
 
+  const clearChat = () => {
+    setMessages([]);
+    setSessionState({});
+}
+
   return (
-    <div className="container">
-      <h1>FinEcho Voice Assistant</h1>
-      <div className="status-box">
-        <p>Status: <span>{status}</span></p>
+    <div className="chat-container">
+      <div className="header">
+        <h1>FinEcho Assistant</h1>
       </div>
-      <div className="button-container">
-        <button
-          onClick={handleStartRecording} // Use the new handler
-          disabled={status === 'recording'}
-          className="btn-start"
-        >
-          Start Recording
-        </button>
-        <button
-          onClick={stopRecording}
-          disabled={status !== 'recording'}
-          className="btn-stop"
-        >
-          Stop Recording
-        </button>
+      <div className="message-list">
+        {messages.map((msg, index) => (
+          <div key={index} className={`message ${msg.sender}`}>
+            {msg.text}
+          </div>
+        ))}
+        <div ref={chatEndRef} />
       </div>
-      <div className="transcription-box">
-        <h2>You Said:</h2>
-        <p>{transcribedText || "..."}</p>
+      <div className="footer">
+        <button onClick={handleRecordClick} className={`record-button ${status}`}>
+          {status === 'idle' && 'Record'}
+          {status === 'recording' && 'Stop'}
+          {status === 'processing' && 'Processing...'}
+        </button>
+        <button onClick={clearChat} className="clear-button">Clear</button>
       </div>
     </div>
   );
