@@ -5,3 +5,5 @@ TTS
 python-multipart
 pydub
 spacy
+SQLAlchemy
+resemblyzer

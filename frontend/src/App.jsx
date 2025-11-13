@@ -3,13 +3,59 @@ import axios from 'axios';
 import { useReactMediaRecorder } from 'react-media-recorder';
 import './App.css';
 
-function App() {
+// --- A simple component for the enrollment section ---
+function Enrollment({ onEnrollmentSuccess }) {
   const [status, setStatus] = useState('idle'); // idle, recording, processing
-  const [messages, setMessages] = useState([]); // Array to hold the conversation
-  const [sessionState, setSessionState] = useState({}); // To hold conversation state
-  const chatEndRef = useRef(null); // To auto-scroll chat
 
-  // Auto-scroll to the latest message
+  const handleEnrollStop = async (blobUrl, blob) => {
+    setStatus('processing');
+    const formData = new FormData();
+    formData.append('audio_file', blob, 'enrollment.wav');
+    try {
+      await axios.post('http://localhost:8000/enroll', formData);
+      alert('Enrollment successful!');
+      onEnrollmentSuccess();
+    } catch (error) {
+      alert('Enrollment failed. Please try again.');
+      console.error(error);
+    } finally {
+      setStatus('idle');
+    }
+  };
+
+  const { startRecording, stopRecording } = useReactMediaRecorder({ audio: true, onStop: handleEnrollStop });
+
+  const handleRecordClick = () => {
+    if (status === 'idle') {
+      setStatus('recording');
+      startRecording();
+    } else if (status === 'recording') {
+      stopRecording();
+    }
+  };
+
+  return (
+    <div className="enrollment-container">
+      <h2>Voice Enrollment</h2>
+      <p>Please record yourself saying: <strong>"My voice is my password for secure transactions."</strong></p>
+      <button onClick={handleRecordClick} className={`record-button ${status}`}>
+        {status === 'idle' && 'Start Enrollment Recording'}
+        {status === 'recording' && 'Stop Recording'}
+        {status ==='processing' && 'Processing...'}
+      </button>
+    </div>
+  );
+}
+
+
+// --- Main App Component ---
+function App() {
+  const [status, setStatus] = useState('idle'); // idle, recording, processing, awaiting_verification
+  const [messages, setMessages] = useState([]);
+  const [sessionState, setSessionState] = useState({});
+  const [showEnrollment, setShowEnrollment] = useState(true);
+  const chatEndRef = useRef(null);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -18,21 +64,27 @@ function App() {
     setMessages(prev => [...prev, { text, sender }]);
   };
 
-  async function handleStopCallback(blobUrl, blob) {
+  const handleStopCallback = async (blobUrl, blob) => {
     setStatus('processing');
+    
+    let endpoint = 'http://localhost:8000/converse';
+    // If we are in the verification step, call the verification endpoint instead
+    if (status === 'awaiting_verification') {
+      endpoint = 'http://localhost:8000/verify_and_execute';
+    }
+
     const formData = new FormData();
-    // Append session state as a string, because it's not a file
     formData.append('session_state_str', JSON.stringify(sessionState));
     formData.append('audio_file', blob, 'recording.wav');
 
     try {
-      const response = await axios.post('http://localhost:8000/converse', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const response = await axios.post(endpoint, formData, {
         responseType: 'blob',
       });
 
       const userText = response.headers['x-transcribed-text'];
       const updatedSession = JSON.parse(response.headers['x-session-state']);
+      const requiresVerification = response.headers['x-requires-verification'] === 'true';
 
       handleNewMessage(userText, 'user');
       setSessionState(updatedSession);
@@ -41,48 +93,51 @@ function App() {
       const audio = new Audio(audioUrl);
       audio.play();
 
-      // We need the assistant's text response for the chat history
-      // For now, we'll have to wait until Phase 6 (LLM) for the actual text.
-      // Let's use a placeholder.
-      // A better approach would be for the backend to return a JSON with both text and audio path.
       handleNewMessage("...(Assistant's spoken response)", 'assistant');
+
+      // Transition to the verification state if required
+      if (requiresVerification) {
+        setStatus('awaiting_verification');
+      } else {
+        setStatus('idle');
+      }
 
     } catch (error) {
       console.error('Error in conversation:', error);
       handleNewMessage("Sorry, I encountered an error.", 'assistant');
-    } finally {
       setStatus('idle');
     }
-  }
+  };
 
   const { startRecording, stopRecording } = useReactMediaRecorder({
     audio: true,
     onStop: handleStopCallback,
-    onError: () => handleNewMessage("Recording failed. Please check microphone permissions.", 'assistant'),
   });
 
   const handleRecordClick = () => {
-    if (status === 'idle') {
-      // Only clear messages and state if it's the start of a brand new conversation
-      if (messages.length === 0) {
-        setSessionState({});
-      }
+    if (status === 'idle' || status === 'awaiting_verification') {
       setStatus('recording');
       startRecording();
     } else if (status === 'recording') {
       stopRecording();
     }
   };
-
-  const clearChat = () => {
+  
+  const startNewConversation = () => {
     setMessages([]);
     setSessionState({});
-}
+    setStatus('idle');
+  }
+
+  if (showEnrollment) {
+    return <Enrollment onEnrollmentSuccess={() => setShowEnrollment(false)} />;
+  }
 
   return (
     <div className="chat-container">
       <div className="header">
         <h1>FinEcho Assistant</h1>
+        <button onClick={startNewConversation} className="clear-button">New Chat</button>
       </div>
       <div className="message-list">
         {messages.map((msg, index) => (
@@ -90,15 +145,20 @@ function App() {
             {msg.text}
           </div>
         ))}
+        {status === 'awaiting_verification' && (
+          <div className="message assistant verification-prompt">
+            Please speak the verification phrase now.
+          </div>
+        )}
         <div ref={chatEndRef} />
       </div>
       <div className="footer">
         <button onClick={handleRecordClick} className={`record-button ${status}`}>
-          {status === 'idle' && 'Record'}
-          {status === 'recording' && 'Stop'}
+          {status === 'idle' && 'Start Recording'}
+          {status === 'recording' && 'Stop Recording'}
           {status === 'processing' && 'Processing...'}
+          {status === 'awaiting_verification' && 'Record Verification Phrase'}
         </button>
-        <button onClick={clearChat} className="clear-button">Clear</button>
       </div>
     </div>
   );

@@ -99,3 +99,38 @@ body {
 .clear-button:hover {
   background-color: #444;
 }
+
+
+.enrollment-container {
+  max-width: 600px;
+  margin: 50px auto;
+  padding: 40px;
+  background-color: #454a54;
+  color: white;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.verification-prompt {
+  background-color: #ffc107 !important;
+  color: #202123 !important;
+  font-weight: bold;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.clear-button {
+  background: none;
+  border: 1px solid #555;
+  color: #ddd;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.clear-button:hover {
+  background-color: #444;
+}
