@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+openai-whisper
+TTS
+python-multipart
+pydub
+spacy
