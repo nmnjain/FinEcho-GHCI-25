@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>FinEcho - AI Voice Assistant</title>
+  <style>
+    :root {
+      --primary-glow: #00f0ff;
+      --secondary-glow: #0066ff;
+      --recording-glow: #ff2a6d;
+      --speaking-glow: #05ffa1;
+      --bg-dark: #050505;
+    }
+
+    body {
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 50% 50%, #121225 0%, #000000 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: white;
+      overflow: hidden;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Main container */
+    .interface-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 50px; /* Spacing between branding, orb, and status */
+      position: relative;
+      z-index: 1;
+    }
+
+    /* --- BRANDING SECTION --- */
+    .brand-container {
+      text-align: center;
+      margin-bottom: 10px;
+      animation: fadeDown 1s ease-out;
+    }
+
+    .brand-title {
+      font-size: 3rem;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: -1px;
+      /* Gradient Text Effect */
+      background: linear-gradient(135deg, #fff 30%, var(--primary-glow) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 15px rgba(0, 240, 255, 0.3));
+    }
+
+    .brand-subtitle {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      color: rgba(255, 255, 255, 0.4);
+      margin-top: 8px;
+      font-weight: 500;
+    }
+
+    /* --- THE AI ORB --- */
+    .orb-container {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+
+    .orb-container:active {
+      transform: scale(0.92);
+    }
+
+    /* The core glowing circle */
+    .orb-core {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1), transparent), 
+                  conic-gradient(from 0deg, var(--primary-glow), var(--secondary-glow), var(--primary-glow));
+      box-shadow: 0 0 60px rgba(0, 240, 255, 0.2), inset 0 0 20px rgba(255,255,255,0.1);
+      filter: blur(0.5px);
+      animation: rotateOrb 10s linear infinite;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Inner dark circle */
+    .orb-core::after {
+      content: '';
+      position: absolute;
+      width: 88%;
+      height: 88%;
+      border-radius: 50%;
+      background: #080808;
+      z-index: -1;
+    }
+
+    /* Icon styling */
+    .orb-icon {
+      width: 36px;
+      height: 36px;
+      fill: white;
+      z-index: 3;
+      opacity: 0.9;
+      transition: all 0.3s ease;
+    }
+
+    /* Ambient Rings (The Pulse) */
+    .pulse-ring {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 2px solid var(--primary-glow);
+      opacity: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* --- STATES --- */
+    .orb-container.is-listening .orb-core {
+      background: conic-gradient(from 0deg, var(--recording-glow), #ff003c, var(--recording-glow));
+      box-shadow: 0 0 80px rgba(255, 42, 109, 0.4);
+      animation: rotateOrb 2s linear infinite;
+    }
+    
+    .orb-container.is-listening .pulse-ring {
+      border-color: var(--recording-glow);
+      animation: ripple 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+    }
+    
+    .orb-container.is-listening .orb-icon {
+      transform: scale(1.1);
+      fill: var(--recording-glow);
+    }
+
+    .orb-container.is-processing .orb-core {
+      background: white;
+      box-shadow: 0 0 50px rgba(255,255,255,0.5);
+      animation: breathe 1.5s ease-in-out infinite;
+    }
+    .orb-container.is-processing .orb-icon {
+      opacity: 0.5;
+      animation: blink 1s infinite;
+    }
+
+    .orb-container.is-speaking .orb-core {
+      background: conic-gradient(from 0deg, var(--speaking-glow), #00cc88, var(--speaking-glow));
+      box-shadow: 0 0 90px rgba(5, 255, 161, 0.3);
+      animation: rotateOrb 4s linear infinite;
+    }
+    .orb-container.is-speaking .pulse-ring {
+      border-color: var(--speaking-glow);
+      animation: ripple 2s infinite;
+    }
+
+    /* Text Status Styling */
+    .status-wrapper {
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .status {
+      font-size: 14px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.3);
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .orb-container.is-listening ~ .status-wrapper .status { color: var(--recording-glow); text-shadow: 0 0 10px var(--recording-glow); }
+    .orb-container.is-speaking ~ .status-wrapper .status { color: var(--speaking-glow); text-shadow: 0 0 10px var(--speaking-glow); }
+
+    /* --- KEYFRAMES --- */
+    @keyframes rotateOrb {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes ripple {
+      0% { width: 100%; height: 100%; opacity: 0.8; border-width: 1px; }
+      100% { width: 240%; height: 240%; opacity: 0; border-width: 0px; }
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(0.95); opacity: 0.7; }
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Background Grid */
+    .bg-grid {
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 50px 50px;
+      transform: perspective(500px) rotateX(60deg);
+      top: -20%;
+      z-index: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-grid"></div>
+
+  <div class="interface-container">
+    
+    <div class="brand-container">
+      <h1 class="brand-title">FinEcho</h1>
+      <div class="brand-subtitle">Voice Intelligence</div>
+    </div>
+
+    <div id="recordBtn" class="orb-container">
+      <div class="orb-core">
+        <svg class="orb-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+        </svg>
+      </div>
+      <div class="pulse-ring"></div>
+      <div class="pulse-ring" style="animation-delay: 0.5s;"></div>
+    </div>
+
+    <div class="status-wrapper">
+      <div class="status" id="status">Hold to Speak</div>
+    </div>
+
+  </div>
+
+<script>
+(() => {
+  const recordBtn = document.getElementById('recordBtn');
+  const statusEl = document.getElementById('status');
+
+  // --- CONFIGURATION ---
+  const webhookUrl = "http://localhost:5678/webhook-test/audio"; 
+  const authToken = "nemojain12345678"; 
+  const userId = "user_001";
+  const sessionId = 'session_' + Date.now();
+
+  let mediaRecorder, audioChunks = [];
+
+  function setVisualState(state) {
+    recordBtn.classList.remove('is-listening', 'is-processing', 'is-speaking');
+    if (state === 'listening') recordBtn.classList.add('is-listening');
+    if (state === 'processing') recordBtn.classList.add('is-processing');
+    if (state === 'speaking') recordBtn.classList.add('is-speaking');
+  }
+
+  function setStatus(text) { 
+    statusEl.textContent = text; 
+  }
+
+  const startRecording = async (e) => {
+    if(e) e.preventDefault(); 
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.addEventListener('dataavailable', e => {
+        if (e.data.size > 0) audioChunks.push(e.data);
+      });
+      mediaRecorder.start();
+      setVisualState('listening');
+      setStatus('Listening...');
+    } catch (err) {
+      console.error(err);
+      setStatus('Microphone Access Denied');
+    }
+  };
+
+  const stopRecording = (e) => {
+    if(e) e.preventDefault();
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach(track => track.stop());
+      setVisualState('processing');
+      setStatus('Processing...');
+      
+      mediaRecorder.addEventListener('stop', async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        await uploadAndPlay(audioBlob);
+      });
+    }
+  };
+
+  const uploadAndPlay = async (blob) => {
+    try {
+      const formData = new FormData();
+      formData.append('audio', blob, `voice.webm`);
+      formData.append('user_id', userId);
+      formData.append('session_id', sessionId);
+
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + authToken },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const audioBlob = await res.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      
+      setVisualState('speaking');
+      setStatus('FinEcho Speaking...');
+      audio.play();
+
+      audio.onended = () => {
+        setVisualState('idle');
+        setStatus('Hold to Speak');
+      };
+
+    } catch (err) {
+      console.error(err);
+      setVisualState('idle');
+      setStatus('System Error');
+    }
+  };
+
+  recordBtn.addEventListener('mousedown', startRecording);
+  recordBtn.addEventListener('mouseup', stopRecording);
+  recordBtn.addEventListener('touchstart', startRecording);
+  recordBtn.addEventListener('touchend', stopRecording);
+})();
+</script>
+
+</body>
+</html>
