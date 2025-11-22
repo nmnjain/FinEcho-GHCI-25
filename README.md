@@ -8,6 +8,7 @@
 **Team:** FinEcho
 **Project Type:** AI Voice Assistant for Financial Operations
 **Mode:** Voice-Only (No Text – Full Voice UI)
+**Youtube Link:** https://youtu.be/A6B2qBqP0mk
 
 ---
 
