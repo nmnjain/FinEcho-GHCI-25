@@ -1,0 +1,806 @@
+{
+  "name": "final",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-pro",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-pro"
+        },
+        "text": "You are FinEcho, a helpful and friendly banking voice assistant.\n\nA user has just sent a new audio request. First, transcribe their request. Then, analyze their request \n\nYour main task is to decide the single most appropriate action to take. The possible actions are:\n1.  check_balance\n2.  transfer_money\n3.  fd_rate\n4.  transaction_history\n5.  check_fx_rate\n6.  general_query (Use this for greetings or questions about loans, cards, or saving schemes)\n\n**New Action for FX Rates:**\n- If the user asks for an exchange rate (e.g., \"What is the USD to INR rate?\"), you must use the 'check_fx_rate' intent.\n- You must also extract the three-letter currency code they are asking about (like USD, EUR, GBP).\n- For this intent, your JSON output MUST include an \"entities\" object.\n\nExample for FX Rate intent:\n{\n  \"transcript\": \"What is the exchange rate for US dollars?\",\n  \"intent\": \"check_fx_rate\",\n  \"entities\": {\n    \"currency_code\": \"USD\"\n  },\n  \"responseText\": \"One moment, let me check the latest exchange rates for you.\"\n}\n...\n**Domain Knowledge for General Queries:**\n- **Loans:** Home Loan starts at 8.5%, Car Loan at 9.2%. To apply, users need to visit a branch with their ID and income proof.\n- **Cards:** We offer the 'FinEcho Rewards Card' with cashback. The annual fee is waived for the first year.\n- **Saving Schemes:** The 'FinEcho Smart Saver' account offers 7% interest on fixed deposits over 5 years.\n- **Service Charges:** ATM withdrawals from other banks have a fee of 25 rupees after the first three transactions each month.\n- **Terms and Conditions:** For our full terms and conditions, please visit the FinEcho website. Our services are available to all resident Indian citizens over the age of 18.\n- **Documentation:** To open an account, you will need your PAN card and Aadhaar card for KYC verification.\n- **Banking Procedures:** To reset your internet banking password, you can use the 'Forgot Password' link on our official website.\n...\nRules:\n- ALWAYS return ONLY a single, valid JSON object and nothing else.\n- Your output must follow exactly this format:\n{\n  \"transcript\": \"The user's transcribed audio\",\n  \"intent\": \"The single best action from the list above\",\n  \"responseText\": \"A natural, conversational response to speak back to the user. For general queries, use the domain knowledge to form your answer.\"\n}",
+        "inputType": "binary",
+        "binaryPropertyName": "audio0",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        -416,
+        784
+      ],
+      "id": "2b6597fb-b16b-461d-999a-473a62a1a9ca",
+      "name": "Analyze audio",
+      "credentials": {
+        "googlePalmApi": {
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "audio",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "binaryPropertyName": "audio",
+          "rawBody": false,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -640,
+        784
+      ],
+      "id": "c19bf2b9-0a1c-4778-82ac-0676217d369d",
+      "name": "Webhook"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json[\"intent\"]}}",
+                    "rightValue": "check_balance",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "25940990-77b6-453e-921c-a2b26ec89e5d"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "f2f8a5fa-9df0-4870-a49c-125012eebdad",
+                    "leftValue": "={{$json[\"intent\"]}}",
+                    "rightValue": "transfer_money",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "958870b3-482b-4295-bfc3-129830f273c1",
+                    "leftValue": "={{$json[\"intent\"]}}",
+                    "rightValue": "general_query",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "af7d93ca-e525-454d-9918-8c02371e4fe4",
+                    "leftValue": "={{$json[\"intent\"]}}",
+                    "rightValue": "fd_rate",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "6a99cade-64e6-423a-8430-0e5893c86a71",
+                    "leftValue": "={{$json[\"intent\"]}}",
+                    "rightValue": "transaction_history",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "2a106ecd-9fce-477e-9417-33b9433648de",
+                    "leftValue": "={{$json[\"intent\"]}}",
+                    "rightValue": "check_fx_rate",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        32,
+        720
+      ],
+      "id": "9a6bd106-7b79-4c7c-a902-c30d04883c06",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Use an expression to get the user_id from the incoming JSON\nSELECT balance FROM accounts WHERE user_id = '{{ $json.user_id }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        704,
+        112
+      ],
+      "id": "afb69909-712e-42a8-b255-533e28235a1a",
+      "name": "Execute a SQL query",
+      "credentials": {
+        "mySql": {
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4248ef26-73a6-4ed1-bc98-92db3a56b002",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        400
+      ],
+      "id": "daf53ca8-5d19-416b-a673-e0a85b0288da",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "audio/wav"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1376,
+        688
+      ],
+      "id": "94cd9968-dca4-46ec-9256-89d22c184b33",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Start by making a full copy of the incoming data. This is the GOLDEN RULE.\nconst item = { ...$input.item.json };\n\nconst transcript = item.transcript;\nconst numbers = transcript.match(/\\d+/g) || [];\n\n// Add new properties to the copied object\nitem.amount = numbers[0] || null;\n// Example: \"transfer 500 to user 2\"\nconst recipientMatch = transcript.match(/to user (\\d+)/i);\nitem.recipient_id = recipientMatch ? `user_00${recipientMatch[1]}` : null;\n\n// Add an error property if validation fails\nif (!item.amount || !item.recipient_id) {\n  item.error = \"Sorry, I couldn't understand the amount or the recipient. Please state it clearly, for example: 'transfer 500 to user 2'.\";\n}\n\n// Return the full, modified object.\nreturn item;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        400
+      ],
+      "id": "730a847d-a8de-4444-a308-e14a3527c86e",
+      "name": "Extract_Transfer_Details"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://finecho.free.beeceptor.com/transfer",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from_user_id\": \"{{ $json.user_id }}\",\n  \"to_user_id\": \"{{ $json.recipient_id }}\",\n  \"amount\": \"{{ $json.amount }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        704,
+        304
+      ],
+      "id": "332bd0bd-c048-4e76-828b-2d0af9da8021",
+      "name": "Execute_Transfer"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1f5d91a-e82f-42ca-a75e-e0dae3dd1dd6",
+              "name": "responseText",
+              "value": "{{ $json.error }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        928,
+        496
+      ],
+      "id": "dd2624de-0520-48ea-b0f5-b3bd68ff0763",
+      "name": "Format_Transfer_Error"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fc6b802a-f324-4285-8220-682a3ae1cf4c",
+              "name": "responseText",
+              "value": "=The transfer of {{ $json.amount }} rupees to {{ $json.recipient_id }} was successful",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        928,
+        304
+      ],
+      "id": "1412c29d-4d54-4139-bd89-ed57783df66f",
+      "name": "Format_Transfer_Success"
+    },
+    {
+      "parameters": {
+        "url": "https://finecho.free.beeceptor.com/fd-rates",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        704,
+        880
+      ],
+      "id": "580088c5-f63c-4af7-b9e8-60147157fa60",
+      "name": "Get_FD_Rates"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0bd56e76-9253-4c5c-b591-9e5e19af6714",
+              "name": "responseText",
+              "value": "=The current fixed deposit rates are: {{ $('Get_FD_Rates').item.json.rates[\"1_year\"] }}% for one year, and {{ $('Get_FD_Rates').item.json.rates[\"5_years\"] }}% for five years.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        928,
+        880
+      ],
+      "id": "702a8e89-1830-4ec2-888e-31add80a8d82",
+      "name": "Format_FD_Response"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        928,
+        688
+      ],
+      "id": "49023052-6eea-4783-9ecf-35ac6f1e0a7a",
+      "name": "No Operation, do nothing1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.murf.ai/v1/speech/stream",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{ $json.responseText }}\",\n  \"voiceId\": \"Eashwar\",\n  \"model\": \"Gen2\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1152,
+        688
+      ],
+      "id": "2b70f71e-d0c0-4e31-bb36-b085ac4a251f",
+      "name": "Generate_Speech_TTS",
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Murf.ai API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// This node takes the complex, nested data from the Merge node\n// and creates a simple, flat object for the rest of the workflow to use.\n\nconst messyData = $input.item.json;\n\n// --- 1. Extract and Parse the AI Response ---\n// The AI's response is a JSON string hidden inside a nested structure.\nconst aiResponseString = $input.first().json.content.parts[0].text;\n\n// Clean the string by removing the markdown fences (\"```json\" and \"```\")\nconst cleanedString = aiResponseString.replace(/```json\\n/g, '').replace(/```/g, '');\n\n// Now, parse the cleaned string into a real JSON object\nconst aiData = JSON.parse(cleanedString);\n\n\n// --- 2. Create our clean, predictable output object ---\nconst cleanData = {\n  // Data from the Webhook/Context side of the merge\n  user_id: $('Webhook').first().json.body.user_id,\n  session_id: $('Webhook').first().json.body.session_id,\n  conversation_history: messyData.conversation_history || [],\n\n  // Data that we just parsed from the AI response\n  transcript: aiData.transcript,\n  intent: aiData.intent,\n  responseText: aiData.responseText\n};\n\n\n// --- 3. Return the clean data for the next node ---\nreturn { json: cleanData };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -192,
+        784
+      ],
+      "id": "e231397e-2b17-4d76-99df-c362e81c5a72",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This node now receives a single, combined object.\n\nconst item = { ...$input.item.json };\n\n// The 'balance' property is now at the top level, merged from the SQL result.\nconst balance = item.balance;\n\n// Create the final, user-facing response message.\nitem.responseText = `Your current account balance is ${balance} rupees.`;\n\n// Return the single, complete, and finalized data object.\nreturn item;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        112
+      ],
+      "id": "6d70f715-57c2-42b3-a349-157d94ab0146",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT amount FROM transactions WHERE user_id = '{{ $json.user_id }}' AND transaction_type = 'debit'\nORDER BY transaction_date DESC LIMIT 5;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        704,
+        1264
+      ],
+      "id": "e0ba0082-e9cf-4968-a81a-6b5da889535a",
+      "name": "Execute a SQL query1",
+      "alwaysOutputData": false,
+      "credentials": {
+        "mySql": {
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all returned SQL rows from previous node.\nconst transactions = $input.all().map(i => i.json);\n\nif (!transactions || transactions.length === 0) {\n  return [{\n    responseText: \"You have no recent spending transactions.\"\n  }];\n}\n\n// Calculate the total spent.\nconst totalSpent = transactions.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);\n\n// Get the most recent transaction's amount (first in array).\nconst lastTransactionAmount = parseFloat(transactions[0].amount);\n\n// Build summary message.\nconst responseText = `In your last ${transactions.length} spending transactions, you spent a total of ${totalSpent.toFixed(2)} rupees. Your most recent transaction was for ${lastTransactionAmount.toFixed(2)} rupees.`;\n\n// Return output as an array for n8n's standards.\nreturn [{\n  responseText\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        1264
+      ],
+      "id": "3faba1a7-e771-4178-8c96-d2655dcd95fd",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "=https://v6.exchangerate-api.com/v6/YOUR_EXCHANGERATE_API_KEY/latest/{{ $json.entities.currency_code }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        704,
+        1072
+      ],
+      "id": "a14468ab-99ac-4b58-8b4d-bddc77ea57d8",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = { ...$input.item.json };\nconst apiResult = item.data; // The result from the HTTP Request node\n\nif (apiResult && apiResult.result === 'success') {\n  const base = apiResult.base_code;\n  const inrRate = apiResult.conversion_rates.INR;\n  item.responseText = `The latest exchange rate is: 1 ${base} is equal to ${inrRate} Indian Rupees.`;\n} else {\n  item.responseText = \"I'm sorry, I couldn't fetch the exchange rate for that currency right now.\";\n}\nreturn item;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        1072
+      ],
+      "id": "9bc716ed-2f52-48a8-ba46-4357751f157d",
+      "name": "Code in JavaScript1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Analyze audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze audio": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract_Transfer_Details",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get_FD_Rates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Execute_Transfer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format_Transfer_Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_Transfer_Details": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute_Transfer": {
+      "main": [
+        [
+          {
+            "node": "Format_Transfer_Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format_Transfer_Error": {
+      "main": [
+        [
+          {
+            "node": "Generate_Speech_TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format_Transfer_Success": {
+      "main": [
+        [
+          {
+            "node": "Generate_Speech_TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get_FD_Rates": {
+      "main": [
+        [
+          {
+            "node": "Format_FD_Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format_FD_Response": {
+      "main": [
+        [
+          {
+            "node": "Generate_Speech_TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Operation, do nothing1": {
+      "main": [
+        [
+          {
+            "node": "Generate_Speech_TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate_Speech_TTS": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Generate_Speech_TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        []
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Generate_Speech_TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Generate_Speech_TTS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
